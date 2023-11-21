@@ -11,10 +11,7 @@ import torch.nn.functional as F
 
 
 class GraphConvolution(Module):
-    """
-    Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
-    """
-
+   
     def __init__(self, in_features, out_features, bias=True):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
@@ -45,67 +42,7 @@ class GraphConvolution(Module):
                + str(self.in_features) + ' -> ' \
                + str(self.out_features) + ')'
     
-    
-class GCN(nn.Module):
-    def __init__(self, nfeat, nhid, out, dropout):
-        super(GCN, self).__init__()
-        self.gc1 = GraphConvolution(nfeat, nhid)
-        self.gc2 = GraphConvolution(nhid, out)
-        self.dropout = dropout
-
-    def forward(self, x, adj):
-        x = F.relu(self.gc1(x, adj))
-        x = F.dropout(x, self.dropout, training = self.training)
-        x = self.gc2(x, adj)
-        return x
-
-class GCN1(nn.Module):
-    def __init__(self, nfeat, nhid, out, dropout):
-        super(GCN1, self).__init__()
-        self.gc1 = GraphConvolution(nfeat, nhid)
-        self.gc2 = GraphConvolution(nhid, out)
-        self.dropout = dropout
-
-    def forward(self, x, adj):
-        x = F.relu(self.gc1(x, adj))
-        x = F.dropout(x, self.dropout, training = self.training)
-        x = self.gc2(x, adj)
-
-        return F.log_softmax(x, dim=1)
-
-class SFGCN(nn.Module):
-    def __init__(self, nfeat, nclass, nhid1, nhid2, n, dropout):
-        super(SFGCN, self).__init__()
-
-        self.SGCN1 = GCN(nfeat, nhid1, nhid2, dropout)
-        self.SGCN2 = GCN(nfeat, nhid1, nhid2, dropout)
-        self.CGCN = GCN(nfeat, nhid1, nhid2, dropout)
-
-        self.dropout = dropout
-        self.a = nn.Parameter(torch.zeros(size=(nhid2, 1)))
-        nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        self.attention = Attention(nhid2)
-        self.tanh = nn.Tanh()
-
-        self.MLP = nn.Sequential(
-            nn.Linear(nhid2, nclass),
-            nn.LogSoftmax(dim=1)
-        )
-
-    def forward(self, x, sadj, fadj):
-        emb1 = self.SGCN1(x, sadj) # Special_GCN out1 -- sadj structure graph
-        com1 = self.CGCN(x, sadj)  # Common_GCN out1 -- sadj structure graph
-        com2 = self.CGCN(x, fadj)  # Common_GCN out2 -- fadj feature graph
-        emb2 = self.SGCN2(x, fadj) # Special_GCN out2 -- fadj feature graph
-        Xcom = (com1 + com2) / 2
-        ## attention
-        emb = torch.stack([emb1, emb2], dim=1)
-        emb = torch.stack([emb1, emb2, Xcom], dim=1)
-        emb, att = self.attention(emb)
-        output = self.MLP(emb)
-        return output, att, emb1, com1, com2, emb2, emb
-
-
+   
 class Attention(nn.Module):
     def __init__(self, in_size, hidden_size=16):
         super(Attention, self).__init__()
